@@ -1,0 +1,317 @@
+[
+  {
+    "id": "ginger-tofu",
+    "name": "Ginger tofu & rice",
+    "description": "Steamed rice, ginger tofu and seasonal greens.",
+    "priceCents": 6800,
+    "stock": 12,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "yes",
+      "dairyFree": "yes",
+      "glutenFree": "yes",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "no",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "chickpea-bowl",
+    "name": "Chickpea garden bowl",
+    "description": "Chickpeas, roasted vegetables and brown rice.",
+    "priceCents": 7200,
+    "stock": 10,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "yes",
+      "dairyFree": "yes",
+      "glutenFree": "yes",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "yes",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "roast-chicken",
+    "name": "Roast chicken rice",
+    "description": "Lemon roast chicken, rice and broccoli.",
+    "priceCents": 7800,
+    "stock": 15,
+    "attributes": {
+      "vegetarian": "no",
+      "vegan": "no",
+      "dairyFree": "yes",
+      "glutenFree": "yes",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "yes",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "mushroom-pasta",
+    "name": "Mushroom cream pasta",
+    "description": "Penne, mushrooms and cream sauce.",
+    "priceCents": 7600,
+    "stock": 10,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "no",
+      "dairyFree": "no",
+      "glutenFree": "no",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "no",
+      "soyFree": "yes",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "veggie-curry",
+    "name": "Vegetable coconut curry",
+    "description": "Vegetables and coconut curry with rice.",
+    "priceCents": 7400,
+    "stock": 10,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "yes",
+      "dairyFree": "yes",
+      "glutenFree": "yes",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "yes",
+      "sesameFree": "yes",
+      "mild": "no"
+    }
+  },
+  {
+    "id": "salmon-rice",
+    "name": "Salmon rice box",
+    "description": "Roast salmon, rice and cucumber.",
+    "priceCents": 9800,
+    "stock": 8,
+    "attributes": {
+      "vegetarian": "no",
+      "vegan": "no",
+      "dairyFree": "yes",
+      "glutenFree": "yes",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "no",
+      "eggFree": "yes",
+      "soyFree": "yes",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "egg-fried-rice",
+    "name": "Egg & vegetable rice",
+    "description": "Egg fried rice with carrots and peas.",
+    "priceCents": 7000,
+    "stock": 12,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "no",
+      "dairyFree": "yes",
+      "glutenFree": "no",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "no",
+      "soyFree": "no",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "beef-bowl",
+    "name": "Beef & broccoli bowl",
+    "description": "Ginger beef, broccoli and jasmine rice.",
+    "priceCents": 8800,
+    "stock": 10,
+    "attributes": {
+      "vegetarian": "no",
+      "vegan": "no",
+      "dairyFree": "yes",
+      "glutenFree": "no",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "no",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "peanut-noodles",
+    "name": "Peanut sesame noodles",
+    "description": "Wheat noodles with peanut and sesame sauce.",
+    "priceCents": 7000,
+    "stock": 8,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "yes",
+      "dairyFree": "yes",
+      "glutenFree": "no",
+      "peanutFree": "no",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "no",
+      "sesameFree": "no",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "prawn-noodles",
+    "name": "Prawn noodle box",
+    "description": "Prawns, wheat noodles and vegetables.",
+    "priceCents": 9200,
+    "stock": 8,
+    "attributes": {
+      "vegetarian": "no",
+      "vegan": "no",
+      "dairyFree": "yes",
+      "glutenFree": "no",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "no",
+      "fishFree": "yes",
+      "eggFree": "no",
+      "soyFree": "no",
+      "sesameFree": "no",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "paneer-rice",
+    "name": "Paneer tomato rice",
+    "description": "Paneer in a mild tomato sauce with rice.",
+    "priceCents": 8200,
+    "stock": 8,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "no",
+      "dairyFree": "no",
+      "glutenFree": "yes",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "yes",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "lentil-rice",
+    "name": "Lentil & spinach rice",
+    "description": "Lentils, spinach and lemon rice.",
+    "priceCents": 7500,
+    "stock": 10,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "yes",
+      "dairyFree": "yes",
+      "glutenFree": "yes",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "yes",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "chilli-chicken",
+    "name": "Chilli chicken rice",
+    "description": "Chilli chicken, peppers and steamed rice.",
+    "priceCents": 8000,
+    "stock": 10,
+    "attributes": {
+      "vegetarian": "no",
+      "vegan": "no",
+      "dairyFree": "yes",
+      "glutenFree": "no",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "no",
+      "sesameFree": "yes",
+      "mild": "no"
+    }
+  },
+  {
+    "id": "seasonal-box",
+    "name": "Seasonal vegetable box",
+    "description": "A changing seasonal selection; some details unconfirmed.",
+    "priceCents": 6900,
+    "stock": 8,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "unknown",
+      "dairyFree": "unknown",
+      "glutenFree": "unknown",
+      "peanutFree": "unknown",
+      "treeNutFree": "unknown",
+      "shellfishFree": "unknown",
+      "fishFree": "unknown",
+      "eggFree": "unknown",
+      "soyFree": "unknown",
+      "sesameFree": "unknown",
+      "mild": "yes"
+    }
+  },
+  {
+    "id": "pumpkin-box",
+    "name": "Roast pumpkin quinoa",
+    "description": "Roast pumpkin, quinoa and greens. Currently unavailable.",
+    "priceCents": 7800,
+    "stock": 0,
+    "attributes": {
+      "vegetarian": "yes",
+      "vegan": "yes",
+      "dairyFree": "yes",
+      "glutenFree": "yes",
+      "peanutFree": "yes",
+      "treeNutFree": "yes",
+      "shellfishFree": "yes",
+      "fishFree": "yes",
+      "eggFree": "yes",
+      "soyFree": "yes",
+      "sesameFree": "yes",
+      "mild": "yes"
+    }
+  }
+]
