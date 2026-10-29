@@ -8,6 +8,12 @@ import { menu } from '../src/lib/menu';
 import { Store } from '../src/lib/store';
 import { PayPalClient, Payments, reconcile, type PayPalOrder } from '../src/lib/paypal';
 const stores: Store[] = [];
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => { resolve = resolvePromise; reject = rejectPromise; });
+  return { promise, resolve, reject };
+}
 function setup(mode: 'fixture' | 'sandbox' = 'sandbox') {
   const store = new Store(':memory:'); stores.push(store);
   const request = newRequest(2); request.attendees = request.attendees.map(a => ({ ...a, source: 'Do not persist this original reply', confirmed: true, unresolved: [] }));
@@ -51,6 +57,49 @@ describe('payment state and persistence', () => {
     await expect(payments.capture(order.id, order.owner, 'pp-test')).rejects.toMatchObject({ code: 'PAYMENT_LOCKED' });
     expect(() => store.invalidate(order.id, order.owner)).toThrow(/being checked/);
     release(); expect((await first).status).toBe('paid'); expect(capture).toHaveBeenCalledTimes(1);
+  });
+  it.each(['response', 'error'])('keeps capture locked when an earlier status check returns a delayed %s', async outcome => {
+    const { store, order } = setup(); order.status = 'awaiting_approval'; order.paypalId = 'pp-test'; store.save(order);
+    const statusRead = deferred<PayPalOrder>(); const captureWrite = deferred<void>();
+    const client = {
+      capture: vi.fn().mockReturnValue(captureWrite.promise),
+      get: vi.fn().mockReturnValueOnce(statusRead.promise).mockResolvedValue(remote('pp-test', order.id, order.allocation.totalCents)),
+    };
+    const payments = new Payments(store, client as unknown as PayPalClient);
+    const checking = payments.status(order.id, order.owner);
+    const capturing = payments.capture(order.id, order.owner, 'pp-test');
+    if (outcome === 'response') {
+      statusRead.resolve(remote('pp-test', order.id, order.allocation.totalCents, 'APPROVED'));
+      expect((await checking).status).toBe('capturing');
+    } else {
+      statusRead.reject(new Error('delayed timeout'));
+      await expect(checking).rejects.toMatchObject({ code: 'PAYMENT_UNKNOWN' });
+    }
+    expect(store.get(order.id, order.owner)).toMatchObject({ status: 'capturing', captureSubmitted: true });
+    expect(() => store.invalidate(order.id, order.owner)).toThrow(/being checked/);
+    expect(() => store.create(order.owner, order.request, order.allocation, order.mode)).toThrow(/previous payment/);
+    await expect(payments.capture(order.id, order.owner, 'pp-test')).rejects.toMatchObject({ code: 'PAYMENT_LOCKED' });
+    expect(client.capture).toHaveBeenCalledTimes(1);
+    captureWrite.resolve();
+    expect((await capturing).status).toBe('paid');
+    expect(store.get(order.id, order.owner)).toMatchObject({ status: 'paid', captureId: 'capture-test', captureSubmitted: true });
+  });
+  it.each(['paid', 'stale'])('does not overwrite a newer %s order when an earlier status check fails', async status => {
+    const { store, order } = setup(); order.status = 'awaiting_approval'; order.paypalId = 'pp-test'; store.save(order);
+    const statusRead = deferred<PayPalOrder>();
+    const client = {
+      capture: vi.fn().mockResolvedValue(undefined),
+      get: vi.fn().mockReturnValueOnce(statusRead.promise).mockResolvedValue(remote('pp-test', order.id, order.allocation.totalCents)),
+    };
+    const payments = new Payments(store, client as unknown as PayPalClient);
+    const checking = payments.status(order.id, order.owner);
+    if (status === 'paid') await payments.capture(order.id, order.owner, 'pp-test');
+    else store.invalidate(order.id, order.owner);
+    const before = store.get(order.id, order.owner);
+    statusRead.reject(new Error('delayed timeout'));
+    await expect(checking).rejects.toMatchObject({ code: 'PAYMENT_UNKNOWN' });
+    expect(store.get(order.id, order.owner)).toEqual(before);
+    expect(before.status).toBe(status);
   });
   it('preserves unknown outcomes and reconciles a lost capture response', async () => {
     const { store, order } = setup(); order.status = 'awaiting_approval'; order.paypalId = 'pp-test'; store.save(order);

@@ -37,15 +37,26 @@ function checkAmounts(order: StoredOrder, remote: PayPalOrder) {
   return captures;
 }
 export function reconcile(store: Store, order: StoredOrder, remote: PayPalOrder) {
-  const current = store.get(order.id, order.owner);
-  if (current.status === 'stale' || current.status === 'paid') return current;
-  const captures = checkAmounts(order, remote);
-  const completed = captures.find(c => c.status === 'COMPLETED');
-  if (remote.status === 'COMPLETED' && completed?.id) { order.status = 'paid'; order.captureId = completed.id; }
-  else if (captures.some(c => c.status === 'PENDING')) order.status = 'pending';
-  else if (['CREATED', 'PAYER_ACTION_REQUIRED', 'APPROVED'].includes(remote.status || '') && !captures.length && !order.captureSubmitted) order.status = 'awaiting_approval';
-  else order.status = 'unknown';
-  store.save(order); return order;
+  return store.transaction(() => {
+    const current = store.get(order.id, order.owner);
+    // A status read started before capture cannot describe the newer payment attempt.
+    if (current.status === 'stale' || current.status === 'paid' || current.captureSubmitted !== order.captureSubmitted) return current;
+    const captures = checkAmounts(current, remote);
+    const completed = captures.find(c => c.status === 'COMPLETED');
+    if (remote.status === 'COMPLETED' && completed?.id) { current.status = 'paid'; current.captureId = completed.id; }
+    else if (captures.some(c => c.status === 'PENDING')) current.status = 'pending';
+    else if (['CREATED', 'PAYER_ACTION_REQUIRED', 'APPROVED'].includes(remote.status || '') && !captures.length && !current.captureSubmitted) current.status = 'awaiting_approval';
+    else current.status = 'unknown';
+    store.save(current); return current;
+  });
+}
+
+function markUnknown(store: Store, order: StoredOrder) {
+  store.transaction(() => {
+    const current = store.get(order.id, order.owner);
+    if (current.status !== order.status || current.captureSubmitted !== order.captureSubmitted) return;
+    current.status = 'unknown'; store.save(current);
+  });
 }
 
 export class Payments {
@@ -92,7 +103,7 @@ export class Payments {
       await this.client.capture(order);
       // Fetch server-side details instead of trusting the browser or just the capture response.
       return reconcile(this.store, order, await this.client.get(order));
-    } catch (error) { order.status = 'unknown'; this.store.save(order); if (error instanceof AppError) throw error; throw new AppError(502, 'PAYMENT_UNKNOWN', 'The payment response was interrupted. Check status; do not pay again.'); }
+    } catch (error) { markUnknown(this.store, order); if (error instanceof AppError) throw error; throw new AppError(502, 'PAYMENT_UNKNOWN', 'The payment response was interrupted. Check status; do not pay again.'); }
   }
   async status(id: string, owner: string) {
     const order = this.store.get(id, owner);
@@ -102,7 +113,7 @@ export class Payments {
       throw new AppError(409, 'PAYMENT_UNKNOWN', 'No PayPal order ID was received. Recover the original creation request within one hour, or check the Sandbox dashboard. Do not create a new payment.');
     }
     try { return reconcile(this.store, order, await this.client.get(order)); }
-    catch (error) { order.status = 'unknown'; this.store.save(order); if (error instanceof AppError) throw error; throw new AppError(502, 'PAYMENT_UNKNOWN', 'Payment status is still unknown. Check the Sandbox dashboard before paying again.'); }
+    catch (error) { markUnknown(this.store, order); if (error instanceof AppError) throw error; throw new AppError(502, 'PAYMENT_UNKNOWN', 'Payment status is still unknown. Check the Sandbox dashboard before paying again.'); }
   }
 }
 
