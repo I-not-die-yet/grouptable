@@ -12,6 +12,10 @@ The current demo uses one fictional caterer, Table Kitchen, with 15 sample meals
 
 The 31 October local UI refinement shortens Requirements copy, uses “dietary groups” in controls, and places grouping help, taste mapping/privacy explanations, manual profile preview and successful planner activity behind expandable details. Live AI planning is the primary action when enabled; fixture simulation remains labelled. Confirmation, validation and payment rules are unchanged.
 
+## Motion and interaction
+
+The interface uses a layered CSS lunch-box illustration with bounded mouse tilt on fine-pointer desktop devices and a compact static mobile version. Newly generated meal groups enter once with a short, capped stagger; quantity edits do not replay the entrance. Primary actions have subtle press feedback and the planner shows a bounded loading pulse. Reduced-motion preferences disable spatial/entrance/loading animation, and print output stays static. No new package, planning rule, payment behavior or live-service request is introduced.
+
 ## Current Demo Flow
 
 1. **Enter the event details.** Set the total number of people and a budget that includes delivery.

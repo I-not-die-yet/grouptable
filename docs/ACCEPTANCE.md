@@ -2,6 +2,20 @@
 
 This record distinguishes executed local checks from live integration and human acceptance. It is not a claim of production readiness. The primary interface now uses dietary segments and quantities; the older guest-based UI record is retained at the end as history.
 
+## Motion release preparation — 2026-10-31
+
+The owner approved deploying the motion refinement after reviewing the isolated preview. Before upload, GitHub main remained eb843cbd72ca762116cc70da771e5d486fac68c4 and all six target files matched the expected baseline, so no teammate changes needed merging. Only the illustration, GroupTable, SegmentMeals, CSS and two documentation files are included; credentials, data, dependencies and generated artifacts are excluded. The local verification evidence below remains separate from subsequent public deployment checks.
+
+## Isolated local motion preview — 2026-10-31
+
+- Prepared an isolated source copy from the locally verified eb843cb baseline. Original project, GitHub and Render were not modified; no credentials, real database or synced sources were copied. Existing dependencies were reused without installation.
+- Added `src/components/LunchIllustration.tsx`; updated GroupTable, SegmentMeals and CSS. The existing food illustration gains physical layers and mouse tilt bounded to 5/6 degrees, with reset on leave/cancel. Touch and reduced-motion preferences do not tilt; runtime preference changes reset the decoration. The illustration is aria-hidden and introduces no keyboard stop.
+- Generated draft groups use a 320ms entrance with a 70ms stagger capped at 210ms. Existing choices restored for editing do not receive the entrance. Manual quantity edits do not replay it. Primary-button press scale is 0.96. The loading pulse is bounded to three cycles and never implies numeric progress; its label remains until the request finishes.
+- Typecheck, ESLint, production webpack build and **134 tests across 14 files pass** with existing Node 24.22.1. Vitest's default bundled config attempted a temporary file in the shared read-only dependency directory; `--configLoader runner` passed without changing the source project or dependency files.
+- Rendered checks passed at desktop 1440x1000, mobile 390x844, narrow 320px and tablet 768px without horizontal overflow. Desktop tilt, reset, changing reduced-motion preference, static touch illustration, loading/disabled state, two-group entrance, no replay on invalid/corrected manual edits and static print output passed without page errors. CSS entrance playback was inspected at 10 percent speed. Existing desktop/mobile agent acceptance also passed through manual meal splitting, HK$234 simulated checkout/reload, stale capture HTTP 409 and infeasible-budget recovery.
+- All services were forced to fixtures; browser traffic outside loopback was blocked and a temporary SQLite database was used. No provider, private-account or real-payment call occurred. Screenshots and a short interaction video were captured. Safari, physical-device GPU performance and a comprehensive accessibility audit were not verified.
+- CSS defaults keep content visible; no page-load text choreography, scrolling parallax, new animation dependency, paid call, Git mutation or deployment was added. Previous security/storage limitations still apply.
+
 ## Release preparation — 2026-10-31
 
 The owner authorised uploading the verified UI refinement and security fixes to GitHub main, acknowledging that Render On Commit deployment will be triggered. Before uploading, main still pointed to df40ad72221f5cd218f9df8a3e5a10eb7b1220f7; no teammate changes had to be merged. The upload excludes credentials, databases, node_modules, generated builds and artifacts. The 3D animation proposal is not implemented or included.

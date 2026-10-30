@@ -11,6 +11,7 @@ import { convertLegacyAllocation, convertLegacyRequest, restoreDraft } from '@/l
 import { updateSegmentMeals, validateSegments } from '@/lib/segment-allocation';
 import SegmentRequirements, { canAllocateSegments } from './SegmentRequirements';
 import SegmentMeals from './SegmentMeals';
+import LunchIllustration from './LunchIllustration';
 import TastePreferences, { TasteEvidence } from './TastePreferences';
 import type { Restaurant, TasteProfile } from '@/lib/taste';
 import type { AgentResult } from '@/lib/agent-types';
@@ -34,6 +35,7 @@ export default function GroupTable({ menu, aiMode, paymentMode, qlooMode, agentM
   const [tasteSeeds, setTasteSeeds] = useState<Restaurant[]>([]);
   const [agentResult, setAgentResult] = useState<AgentResult | null>(null);
   const [planning, setPlanning] = useState(false);
+  const [animateDraft, setAnimateDraft] = useState(false);
   const [request, setRequest] = useState<SegmentRequest>(() => newSegmentRequest());
   const [text, setText] = useState('');
   const [issues, setIssues] = useState<string[]>([]);
@@ -108,6 +110,7 @@ export default function GroupTable({ menu, aiMode, paymentMode, qlooMode, agentM
       await api(`/api/orders/${order.id}/invalidate`, {});
       sessionStorage.removeItem(orderKey); history.replaceState({}, '', '/');
     }
+    setAnimateDraft(false);
     setOrder(null); setAllocation(nextAllocation); setReturned(false); setReturnToken(undefined);
     setRequest({ ...next, revision: request.revision + 1 }); setStep(nextAllocation ? 'review' : 'requirements');
   }
@@ -142,7 +145,7 @@ export default function GroupTable({ menu, aiMode, paymentMode, qlooMode, agentM
       const parsed = segmentRequestSchema.parse(request);
       const result = await api<{ ok: boolean; allocation?: SegmentAllocation; message?: string; code?: string }>('/api/allocate', taste ? { request: parsed, tasteId: taste.id } : parsed);
       if (!result.ok || !result.allocation) throw new Error(`${result.code}: ${result.message}`);
-      setAllocation(result.allocation); setStep('review');
+      setAnimateDraft(true); setAllocation(result.allocation); setStep('review');
     });
   }
   async function plan() {
@@ -152,7 +155,7 @@ export default function GroupTable({ menu, aiMode, paymentMode, qlooMode, agentM
       const result = await api<AgentResult>('/api/agent/plan', { request: segmentRequestSchema.parse(request), restaurantIds: tasteSeeds.map(s => s.id) });
       setAgentResult(result);
       if (result.outcome === 'draft' && result.allocation) {
-        setAllocation(result.allocation); setTaste(result.profile ?? null); setStep('review');
+        setAnimateDraft(true); setAllocation(result.allocation); setTaste(result.profile ?? null); setStep('review');
       } else setNotice(result.message);
     });
     setPlanning(false);
@@ -212,7 +215,7 @@ export default function GroupTable({ menu, aiMode, paymentMode, qlooMode, agentM
   return <>
     <header className="site-header"><Link className="brand" href="/" aria-label="GroupTable home"><span className="brand-icon" aria-hidden="true"><i /><i /><i /><i /></span>GroupTable</Link><span className="environment">Demo <span className="dot" /></span></header>
     <main>
-      <section className="intro"><div><h1>Plan your team lunch.</h1><p className="intro-copy">Meals that fit your group’s dietary needs and budget.</p></div><div className="lunch-mark" aria-hidden="true"><div className="lunch-box"><div className="rice"><i /><i /><i /><i /><i /><i /></div><div className="greens"><i /><i /><i /></div><div className="tofu"><i /><i /><i /><i /></div></div></div></section>
+      <section className="intro"><div><h1>Plan your team lunch.</h1><p className="intro-copy">Meals that fit your group’s dietary needs and budget.</p></div><LunchIllustration /></section>
       <div className="mode-banner"><span><strong>{aiMode === 'fixture' ? 'Example extraction' : 'Live AI extraction'}</strong> · {paymentMode === 'fixture' ? 'Simulated payment' : 'PayPal Sandbox payment'}</span><span>Demo only · No real orders or charges.</span></div>
       <nav className="steps" aria-label="Order progress">{(['requirements', 'review', 'payment', 'confirmation'] as Step[]).map((s, i) => <span key={s} className={step === s ? 'active' : ''} aria-current={step === s ? 'step' : undefined}><b>{i + 1}</b>{s[0].toUpperCase() + s.slice(1)}</span>)}</nav>
       <div aria-live="polite">{error && <div className="message error" role="alert">{error}</div>}{notice && <div className="message notice">{notice}</div>}</div>
@@ -233,7 +236,7 @@ export default function GroupTable({ menu, aiMode, paymentMode, qlooMode, agentM
             </fieldset>
             <SegmentRequirements request={request} onChange={updateRequirements} disabled={busy} />
             <TastePreferences mode={qlooMode} profile={taste} seeds={tasteSeeds} menu={menu} disabled={busy} onBusy={setBusy} onSelectionChange={seeds => { setTasteSeeds(seeds); setTaste(null); setAllocation(null); setAgentResult(null); }} onChange={profile => { setTaste(profile); setAllocation(null); setAgentResult(null); }} />
-            <div className="agent-planner"><h3>Prepare your meal plan</h3><p className="planner-help">{canAllocateSegments(request) && !issues.length ? 'Review the draft before checkout.' : 'Confirm all groups and count each person once to continue.'}</p><details className="inline-help"><summary>AI &amp; privacy details</summary><p>{agentMode === 'live' ? 'Free AI uses Qloo preferences, if selected, and the checked meal allocator. Anonymous counts, dietary codes and selected restaurant IDs go to OpenRouter; original replies are excluded.' : 'Simulated planner: no model call. Selected example restaurants use invented taste data.'} Nothing is approved or paid automatically.</p></details><div className="plan-actions"><button className={agentMode === 'live' ? 'button primary' : 'button secondary'} disabled={busy || !canAllocateSegments(request) || issues.length > 0} onClick={() => void plan()}>{planning ? 'Preparing your draft…' : agentMode === 'live' ? 'Plan with AI' : 'Simulate AI planner'}</button><button className={agentMode === 'live' ? 'button secondary' : 'button primary'} disabled={busy || !canAllocateSegments(request) || issues.length > 0} onClick={() => void generate()}>{agentMode === 'live' ? 'Generate without AI' : 'Generate meal plan'}</button></div>{tasteSeeds.length > 0 && !taste && <p className="subtle">Without AI, build a taste profile first to use these restaurants.</p>}{planning && <p role="status">Preparing your draft…</p>}{agentResult && <AgentActivity result={agentResult} />}</div>
+            <div className="agent-planner"><h3>Prepare your meal plan</h3><p className="planner-help">{canAllocateSegments(request) && !issues.length ? 'Review the draft before checkout.' : 'Confirm all groups and count each person once to continue.'}</p><details className="inline-help"><summary>AI &amp; privacy details</summary><p>{agentMode === 'live' ? 'Free AI uses Qloo preferences, if selected, and the checked meal allocator. Anonymous counts, dietary codes and selected restaurant IDs go to OpenRouter; original replies are excluded.' : 'Simulated planner: no model call. Selected example restaurants use invented taste data.'} Nothing is approved or paid automatically.</p></details><div className="plan-actions"><button className={agentMode === 'live' ? 'button primary' : 'button secondary'} disabled={busy || !canAllocateSegments(request) || issues.length > 0} onClick={() => void plan()}>{planning ? 'Preparing your draft…' : agentMode === 'live' ? 'Plan with AI' : 'Simulate AI planner'}</button><button className={agentMode === 'live' ? 'button secondary' : 'button primary'} disabled={busy || !canAllocateSegments(request) || issues.length > 0} onClick={() => void generate()}>{agentMode === 'live' ? 'Generate without AI' : 'Generate meal plan'}</button></div>{tasteSeeds.length > 0 && !taste && <p className="subtle">Without AI, build a taste profile first to use these restaurants.</p>}{planning && <p className="planning-status" role="status"><span className="planning-indicator" aria-hidden="true"><i /><i /><i /></span>Preparing your draft…</p>}{agentResult && <AgentActivity result={agentResult} />}</div>
             <p className="safety-note">Demo menu labels do not verify allergen safety or cross-contact controls.</p>
           </>}
           {step === 'review' && allocation && <>
@@ -242,7 +245,7 @@ export default function GroupTable({ menu, aiMode, paymentMode, qlooMode, agentM
             {agentResult && <AgentActivity result={agentResult} />}
             {reviewValidation?.ok && <div className="check-summary"><span>✓ Quantities match</span><span>✓ Requirements checked</span><span>✓ Budget and shared stock checked</span></div>}
             <div aria-live="polite" aria-atomic="true">{reviewValidation && !reviewValidation.ok && <div className="message error" role="alert">{allocation.totalCents > request.budgetCents ? `${money(allocation.totalCents - request.budgetCents)} over budget. Adjust meals or quantities before approving.` : 'Resolve the quantity or compatibility issues shown below.'}{reviewValidation.issues.filter(issue => !issue.segmentId && issue.code !== 'BUDGET').map((issue, i) => <p key={i}>{issue.message}</p>)}</div>}</div>
-            <SegmentMeals request={request} allocation={allocation} menu={menu} onChange={changeSegmentMeals} disabled={busy} />
+            <SegmentMeals request={request} allocation={allocation} menu={menu} onChange={changeSegmentMeals} disabled={busy} animate={animateDraft} />
             <div className="panel-footer"><button className="button secondary" disabled={busy} onClick={() => setStep('requirements')}>Edit requirements</button><button className="button primary" disabled={busy || !reviewValidation?.ok} onClick={() => void approveOrder()}>Approve order & continue</button></div>
           </>}
           {step === 'payment' && order && <><div className="section-heading"><div><h2>{order.mode === 'fixture' ? 'Try the checkout flow.' : 'Ready for Sandbox checkout.'}</h2><p>{order.mode === 'fixture' ? 'This is a simulated payment. Nothing will be sent to PayPal.' : 'Approve with a PayPal Sandbox buyer account. No real money is used.'}</p></div></div><div className="payment-ticket"><span>Approved order</span><strong>{money(order.allocation.totalCents)}</strong><p>{order.request.headcount} meals, including {money(order.allocation.deliveryCents)} delivery.</p><span className="status">{order.status.replaceAll('_', ' ')}</span><p className="reference">Order {order.id}</p></div>

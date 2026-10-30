@@ -1,21 +1,22 @@
 'use client';
+import type { CSSProperties } from 'react';
 import { money, requirementLabels, type MenuItem } from '@/lib/domain';
 import { LIMITS } from '@/lib/limits';
 import { segmentOptions, validateSegments } from '@/lib/segment-allocation';
 import type { SegmentAllocation, SegmentRequest } from '@/lib/segments';
 
 type Line = { itemId: string; quantity: number };
-type Props = { request: SegmentRequest; allocation: SegmentAllocation; menu: MenuItem[]; onChange?: (segmentId: string, lines: Line[]) => void; disabled?: boolean };
-export default function SegmentMeals({ request, allocation, menu, onChange, disabled = false }: Props) {
+type Props = { request: SegmentRequest; allocation: SegmentAllocation; menu: MenuItem[]; onChange?: (segmentId: string, lines: Line[]) => void; disabled?: boolean; animate?: boolean };
+export default function SegmentMeals({ request, allocation, menu, onChange, disabled = false, animate = false }: Props) {
   const validation = onChange ? validateSegments(request, allocation.assignments, menu) : null;
-  return <div className="segment-packing">{request.segments.map(segment => {
+  return <div className={`segment-packing${animate ? ' meal-arrival' : ''}`}>{request.segments.map((segment, index) => {
     const lines = allocation.assignments.filter(line => line.segmentId === segment.id);
     const options = segmentOptions(segment, allocation.assignments, menu);
     const assigned = lines.reduce((sum, line) => sum + (Number.isInteger(line.quantity) && line.quantity > 0 ? line.quantity : 0), 0);
     const subtotal = lines.reduce((sum, line) => sum + (Number.isInteger(line.quantity) && line.quantity > 0 ? (menu.find(m => m.id === line.itemId)?.priceCents ?? 0) * line.quantity : 0), 0);
     const availableToAdd = options.filter(option => !lines.some(line => line.itemId === option.item.id));
     const segmentIssues = validation?.issues.filter(issue => issue.segmentId === segment.id) ?? [];
-    return <section className="segment-card meal-segment" key={segment.id} data-segment-id={segment.id}>
+    return <section className="segment-card meal-segment" key={segment.id} data-segment-id={segment.id} style={animate ? { '--arrival-delay': `${Math.min(index, 3) * 70}ms` } as CSSProperties : undefined}>
       <div className="row-between"><h3>{segment.label}</h3><span className="counter">{segment.headcount} people</span></div>
       <p className="segment-rules">{segment.requirements.length ? segment.requirements.map(rule => requirementLabels[rule]).join(', ') : 'No known dietary restrictions — explicitly confirmed'}</p>
       <div className="meal-line-labels" aria-hidden="true"><span>Meal</span><span>Quantity</span><span>Line total</span><span /></div>
