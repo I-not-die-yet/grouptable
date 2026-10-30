@@ -6,7 +6,7 @@ A local-first group meal ordering prototype. Enter dietary segments with quantit
 
 ## Requirements
 
-- Node.js **24.19.0** (see `.nvmrc`) and npm. Node's built-in `node:sqlite` is used; no database server is needed. This API is a release candidate in the pinned runtime.
+- Node.js **24.22.1** (see `.nvmrc`) and npm. Node's built-in `node:sqlite` is used; no database server is needed. This API is a release candidate in the pinned runtime.
 - One local Node server and a modern browser, on the same machine.
 - Optional: an OpenRouter project key with an account-owner-approved spending cap, and PayPal Sandbox application credentials.
 
@@ -25,12 +25,22 @@ The browser URL, `APP_URL`, PayPal return URLs and port must match. If port 3000
 
 For a production-mode local build, run `npm run build`, then `npm start`. Keep the server bound to loopback. This application has not been designed or hardened for public deployment.
 
+## Public-demo security boundary
+
+The local security pass on 31 October 2026 pins Node **24.22.1** (a security release) and Zod **4.6.6**. HTTPS `APP_URL` values add `Secure` to session cookies; HTTP loopback development retains its existing cookie behavior. Next.js adds MIME-sniffing, framing, referrer and browser-permission headers. Its limited CSP restricts framing, base URLs and embedded objects; it is not a complete script/XSS policy. HTTPS builds add one day of HSTS without preload or subdomain coverage. Set the correct `APP_URL` before building and running; an existing Render `NODE_VERSION` override must be checked separately.
+
+These controls do not authenticate visitors or prevent deliberate API abuse. Anyone reaching a live demo can use the enabled planner/Qloo endpoints and consume their process quotas. Origin checks prevent some browser cross-site requests; direct HTTP clients can supply those headers. Process counters reset on restarts and are not durable rate limits. Private-demo access controls or a stronger abuse policy require a separate design decision; do not treat an unadvertised URL as access control. Use anonymous test data and retain provider-side spending caps for any paid extraction.
+
+Render Free has an ephemeral filesystem: local SQLite orders and payment recovery mappings can disappear on restart, redeployment or idle shutdown. Do not rely on that setup for durable orders or payment reconciliation. Keep public payment demonstrations simulated until storage and access controls are reviewed. Choosing a persistent disk/database, changing hosting or adding authentication needs owner approval; none was changed by this pass.
+
+See `docs/ACCEPTANCE.md` for executed checks and remaining deployment gaps. The current GitHub/Render version is separate from unpushed local changes.
+
 ## Try the fixture workflow
 
-1. Open **Extract segments from counts or replies** and choose **30 people, four exclusive segments**.
-2. Select **Load example**, then **Extract example segments**. This loads labelled fixture data, not AI output. Arbitrary input is not parsed in fixture mode.
+1. Open **Import dietary replies** and choose **30 people, four exclusive segments**.
+2. Select **Load example**, then **Import example**. This loads labelled fixture data, not AI output. Arbitrary input is not parsed in fixture mode.
 3. Review labels, counts, supported requirements and source excerpts for the four segments. Confirm each segment, including the no-known-restrictions group, and confirm that each person is counted once.
-4. Select **Allocate meals**. Review meal types, quantities, each segment's subtotal and shared menu availability.
+4. Select **Generate meal plan** (or **Generate without AI** in live-planner mode). Review meal types, quantities, each segment's subtotal and shared menu availability.
 5. Change meal types or quantities, add/remove meal lines, and correct any count, stock or budget issue before **Approve order & continue**.
 6. Select **Simulate PayPal approval**, then **Complete simulated payment**. Print the packing summary by segment or refresh the confirmation; simulation remains clearly labelled.
 
@@ -58,7 +68,7 @@ Replacement controls stop after approval. **Edit order** invalidates its old che
 
 ## Optional Qloo taste preferences
 
-On Requirements, search for favourite restaurant branches, select up to three, and build a taste profile before allocating. Fixture mode uses three invented restaurants; search **Example**. Their names and association scores are synthetic, not stored Qloo responses. Nothing is sent to Qloo in fixture mode.
+On Requirements, search for favourite restaurant branches and select up to three. For allocation without AI, open **Preview taste profile** and build a profile first; the AI planner can retrieve it automatically. Fixture mode uses three invented restaurants; search **Example**. Their names and association scores are synthetic, not stored Qloo responses. Nothing is sent to Qloo in fixture mode.
 
 To use the authorised hackathon key, set these values only in your ignored `.env.local`, then restart:
 
@@ -84,7 +94,7 @@ Official reference: [Qloo taste analysis](https://docs.qloo.com/reference/taste-
 
 After confirming dietary segments and exclusivity, optionally search and select restaurant branches, then press **Simulate AI planner** or **Plan with AI**. Building a taste profile manually is not required. The agent requests `get_cuisine_profile` when branches are selected, requests the existing allocation/independent validator through `allocate_meals`, then uses `finish_plan` to hand back a verified draft or a permitted next step. Without selected restaurants it can allocate directly. Review retains a factual activity record; manual edits never restart the agent.
 
-`AGENT_MODE=fixture` is the default: the sequence is deterministic and labelled as simulated, with no model call. Selected restaurants require `QLOO_MODE=fixture` in this mode; otherwise the server refuses rather than making an unexpected live lookup. The existing **Allocate meals** button remains available independently.
+`AGENT_MODE=fixture` is the default: the sequence is deterministic and labelled as simulated, with no model call. Selected restaurants require `QLOO_MODE=fixture` in this mode; otherwise the server refuses rather than making an unexpected live lookup. The existing **Generate meal plan** (or **Generate without AI** in live-planner mode) button remains available independently.
 
 For the tested free-model path, set locally and restart:
 

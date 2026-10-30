@@ -2,6 +2,35 @@
 
 This record distinguishes executed local checks from live integration and human acceptance. It is not a claim of production readiness. The primary interface now uses dietary segments and quantities; the older guest-based UI record is retained at the end as history.
 
+## Release preparation — 2026-10-31
+
+The owner authorised uploading the verified UI refinement and security fixes to GitHub main, acknowledging that Render On Commit deployment will be triggered. Before uploading, main still pointed to df40ad72221f5cd218f9df8a3e5a10eb7b1220f7; no teammate changes had to be merged. The upload excludes credentials, databases, node_modules, generated builds and artifacts. The 3D animation proposal is not implemented or included.
+
+After the security audit, the owner supplied a Render build-log screenshot showing Node.js 24.22.1 selected through NODE_VERSION. That build still used the old df40ad7 source and was shown in progress; this establishes the selected build runtime, not acceptance of the new code. The test evidence below covers the local final code; deployment completion is verified separately after uploading.
+
+## Local public-demo security pass — 2026-10-31
+
+- Connected GitHub `main` was `df40ad72221f5cd218f9df8a3e5a10eb7b1220f7`, private, with `protected: false`. Backend/configuration and lockfile matched their pre-fix local versions. GitHub was read only.
+- One public homepage GET returned HTTP 200, showing fixture extraction/payment and live agent/Qloo in public props. It lacked the six HTTP headers listed below. No public API probe, live provider or payment call was made. The deployed Node version and private Render environment/provider caps remain unverified.
+- npm's documented bulk advisory endpoint received 442 public package names/version lists only. Before: Zod 4.3.6 matched high-severity GHSA-mrhx-c7xc-m3w5. After the explicitly approved update to 4.6.6: no advisories returned. No source or credentials were sent. This is a point-in-time advisory lookup, not proof of no vulnerabilities.
+- Two bounded regression tests failed before the fixes: HTTPS cookie lacked Secure; 500 invalid groups below the body cap generated 3,501 validation issues. After fixing, the oversized array produces one size issue before parsing children. No OOM or exploit was attempted.
+- Node configuration now pins the official 24.22.1 security release; the existing test runtime is 24.22.1. No machine runtime was installed or changed. The approved Zod tarball was SHA-512 verified and extracted without lifecycle scripts; only the root/Zod lockfile entries changed.
+- HTTPS APP_URL adds Secure to the existing HttpOnly/SameSite=Lax cookie. HTTP loopback remains usable. Next adds nosniff, DENY framing, same-origin referrer policy, disabled unused camera/microphone/geolocation permissions, and limited base/object/frame CSP. HTTPS builds add one-day HSTS without preload/subdomain coverage. This CSP is not complete script/XSS protection; none of these headers authenticates visitors.
+- **134/134 tests pass in 14 files**; typecheck, ESLint and production webpack build pass. Both new tests fail before/pass after. Three existing desktop/mobile browser suites pass on the final local production build: fixture planner/taste, manual edits, simulated payment/reload, stale checkout and legacy compatibility. Browser external traffic was blocked.
+- Local HTTP checks verify all six headers on HTML/API/404, Secure under simulated HTTPS proxy configuration, HTTP loopback cookies, cross-origin 403, oversized body 413, malformed JSON 400 without raw input echo, and oversized group array 400. Fetch did not preserve the proxy test's custom Host header, so a raw HTTP client was used; Origin checks were not weakened.
+- Remaining: anonymous visitors can consume live API quotas; process counters reset, and allocation/order routes lack durable abuse controls. Render Free cannot preserve local SQLite across restarts/redeploys/idle shutdown. Main has no enforced protection. Persistent storage/authentication/hosting changes need separate approval. Current-tree paths and known-token patterns found no secret candidates; history was not exhaustively scanned.
+- Changed: `src/lib/http.ts`, `next.config.ts`, `.nvmrc`, package.json/lock, `tests/security.test.ts`, README and this record. Prior UI edits remain. No deploy, branch, commit, push, PR, paid call, credential rotation, migration or cloud setting change. Local test servers stopped after checks.
+
+## Local UI copy and hierarchy refinement — 2026-10-31
+
+- Shortened the hero and Requirements copy; controls now use “dietary groups”. Kept explicit dietary/no-known-restrictions confirmations, exclusivity, unresolved questions and all server validators.
+- Grouping help, preference mapping/privacy explanations, manual taste-profile preview and successful planner activity are expandable. Failed planning remains expanded. Live mode prioritises **Plan with AI**; allocation without AI remains available, with a conditional reminder to build a profile when restaurant selections have not yet been profiled.
+- Updated `src/components/GroupTable.tsx`, `src/components/SegmentRequirements.tsx`, `src/components/TastePreferences.tsx`, `src/app/globals.css`, three existing browser scripts, README and CURRENT_DEMO. No backend, schema, dependencies or payment behavior changed.
+- **132/132 unit tests pass across 13 files**. Typecheck, ESLint and webpack production build pass. Verification used the available bundled Node **24.22.1**, rather than the README-pinned 24.19.0.
+- All three existing browser suites pass against the final local production build at desktop 1440×1000 and mobile 390×844: fixture planner, taste changes, manual quantities, simulated checkout/reload, stale checkout rejection, group confirmation/count limits and legacy compatibility. Existing scripts were adjusted for the new labels and disclosure controls; their behavioral assertions remain.
+- Separate rendered checks at widths 320, 390, 768 and 1440 found no horizontal overflow or page errors. Keyboard toggling, confirmation gating, live-planner primary styling and minimum 44px targets for the refined disclosure/planning controls pass. Sampled refined text/button contrast pairs have a minimum ratio of 4.94:1. This is not a comprehensive accessibility audit.
+- Fixture APIs and temporary SQLite databases were used. Browser requests outside the local origin were blocked. Live-planner styling was checked with an empty key and zero planner requests. No model, Qloo or PayPal service request, paid call, installation, public deployment or Git mutation was performed. Local servers were stopped after verification. Public-site and uncoached-user acceptance were not performed.
+
 ## Teammate payment-race fix integrated locally — 2026-10-30
 
 - Applied the reviewed changes from commit `425939d05095c0ef496dfd6aadb0b2628eedeaae` by GitHub account UHTHU to `src/lib/paypal.ts` and `tests/payments.test.ts`. Both resulting files match that commit's Git blob hashes. Existing local Qloo/agent additions were preserved; no branch, commit, merge or push was performed.

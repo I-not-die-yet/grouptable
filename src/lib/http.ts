@@ -13,7 +13,8 @@ export function checkOrigin(request: Request) {
   if (host !== expected.host || request.headers.get('origin') !== expected.origin) throw new AppError(403, 'ORIGIN', 'Open the application at its configured local URL and try again.');
 }
 export function json(body: unknown, owner?: string, status = 200) {
-  return Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...(owner ? { 'Set-Cookie': `gt_session=${owner}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800` } : {}) } });
+  const secure = new URL(process.env.APP_URL || 'http://127.0.0.1:3000').protocol === 'https:';
+  return Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...(owner ? { 'Set-Cookie': `gt_session=${owner}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800${secure ? '; Secure' : ''}` } : {}) } });
 }
 export async function readJson(request: Request) {
   const reader = request.body?.getReader();

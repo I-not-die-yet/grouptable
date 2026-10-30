@@ -10,6 +10,8 @@ GroupTable is an English-language group meal ordering prototype for a single org
 
 The current demo uses one fictional caterer, Table Kitchen, with 15 sample meals. It supports 1–100 people, up to 12 dietary groups, HKD pricing and a fixed HK$80 delivery fee. Menu availability can limit which orders are feasible.
 
+The 31 October local UI refinement shortens Requirements copy, uses “dietary groups” in controls, and places grouping help, taste mapping/privacy explanations, manual profile preview and successful planner activity behind expandable details. Live AI planning is the primary action when enabled; fixture simulation remains labelled. Confirmation, validation and payment rules are unchanged.
+
 ## Current Demo Flow
 
 1. **Enter the event details.** Set the total number of people and a budget that includes delivery.
@@ -47,7 +49,7 @@ No food is ordered or delivered. Dietary checks rely on sample menu labels and d
 
 ## Verification Status
 
-The current automated suite has **132 passing tests across 13 files**, with type checks, lint and production build passing. The 28 October integration check used four real Qloo requests and exercised restaurant search and cuisine profiles through the new application endpoints: two different inputs changed the choices for an otherwise identical event. This does not establish that diners prefer those meals.
+The current automated suite has **134 passing tests across 14 files**, with type checks, lint and production build passing. The 28 October integration check used four real Qloo requests and exercised restaurant search and cuisine profiles through the new application endpoints: two different inputs changed the choices for an otherwise identical event. This does not establish that diners prefer those meals.
 
 On 29 October, two agent application runs used five real free-model requests (API-reported total US$0) and two Qloo requests. The first produced a checked draft, followed by a manual split and simulated checkout at HK$234. The second handled an insufficient budget without changing requirements, headcount or budget. Simulated agent/browser checks passed on desktop and mobile. This is a bounded form-based planning agent; real unfamiliar-reply extraction and real PayPal Sandbox remain separate unverified checks.
 

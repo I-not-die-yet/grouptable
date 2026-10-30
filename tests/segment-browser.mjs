@@ -11,33 +11,33 @@ async function context(viewport = { width: 1440, height: 1000 }) {
   await ctx.route('**/*', route => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
   return ctx;
 }
-async function open(ctx) { const page = await ctx.newPage(); page.on('pageerror', e => errors.push(e.message)); await page.goto(base); await page.getByRole('heading', { name: 'Plan the group order.' }).waitFor(); return page; }
+async function open(ctx) { const page = await ctx.newPage(); page.on('pageerror', e => errors.push(e.message)); await page.goto(base); await page.getByRole('heading', { name: 'Your group' }).waitFor(); return page; }
 async function confirmSegments(page) {
-  const buttons = page.getByRole('button', { name: /^I (reviewed and confirm requirements for|confirm \d+ people have no known dietary restrictions)/ });
+  const buttons = page.getByRole('button', { name: /^(Confirm requirements for|I confirm \d+ people have no known dietary restrictions)/ });
   while (await buttons.count()) { if (!(await buttons.first().isEnabled())) throw new Error('An unresolved segment cannot be confirmed'); await buttons.first().click(); }
-  await page.getByRole('checkbox', { name: /^I confirm these segments are mutually exclusive/ }).check();
+  await page.getByRole('checkbox', { name: /^Each person is counted once./ }).check();
 }
 try {
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
     const ctx = await context(viewport); const page = await open(ctx); const mode = viewport.width === 390 ? 'mobile' : 'desktop';
     let allocations = 0; page.on('request', r => { if (new URL(r.url()).pathname === '/api/allocate') allocations++; });
-    await page.getByText('Extract segments from counts or replies', { exact: true }).click();
+    await page.getByText('Import dietary replies', { exact: true }).click();
     await page.getByRole('button', { name: 'Load example' }).click();
-    await page.getByRole('button', { name: 'Extract example segments' }).click();
-    await page.getByText('Fixture segments loaded.', { exact: false }).waitFor();
+    await page.getByRole('button', { name: 'Import example' }).click();
+    await page.getByText('Example groups loaded.', { exact: false }).waitFor();
     assert.equal(await page.locator('.segment-edit-heading').count(), 4);
     assert.match(await page.locator('.coverage').innerText(), /30 \/ 30 people/);
-    assert(await page.getByRole('button', { name: 'Allocate meals' }).isDisabled());
+    assert(await page.getByRole('button', { name: 'Generate meal plan' }).isDisabled());
     await confirmSegments(page);
     // Editing a confirmed segment must revoke confirmation and exclusivity without changing its ID.
-    await page.getByRole('textbox', { name: 'Label for segment 2', exact: true }).fill('Vegetarian only, reviewed');
-    assert(await page.getByRole('button', { name: 'Allocate meals' }).isDisabled());
-    assert.equal(await page.getByRole('checkbox', { name: /^I confirm these segments are mutually exclusive/ }).isChecked(), false);
-    await page.getByRole('textbox', { name: 'Label for segment 2', exact: true }).fill('Vegetarian only');
+    await page.getByRole('textbox', { name: 'Name for group 2', exact: true }).fill('Vegetarian only, reviewed');
+    assert(await page.getByRole('button', { name: 'Generate meal plan' }).isDisabled());
+    assert.equal(await page.getByRole('checkbox', { name: /^Each person is counted once./ }).isChecked(), false);
+    await page.getByRole('textbox', { name: 'Name for group 2', exact: true }).fill('Vegetarian only');
     await confirmSegments(page);
     await page.getByLabel(/Total budget/).fill('2160');
-    await page.getByRole('button', { name: 'Allocate meals' }).click();
-    await page.getByRole('heading', { name: 'Meals by segment.' }).waitFor();
+    await page.getByRole('button', { name: 'Generate meal plan' }).click();
+    await page.getByRole('heading', { name: 'Your meal plan', exact: true }).waitFor();
     assert.equal(await page.locator('.meal-segment').count(), 4);
     assert.match(await page.locator('.aside-total').innerText(), /2,148\.00/);
     const regular = page.locator('.meal-segment').filter({ has: page.getByRole('heading', { name: 'No known dietary restrictions', exact: true }) });
@@ -78,7 +78,7 @@ try {
     await page.getByRole('button', { name: 'Simulate PayPal approval' }).click();
     const oldId = snapshot.id;
     await page.getByRole('button', { name: 'Edit order', exact: true }).click();
-    await page.getByRole('heading', { name: 'Meals by segment.' }).waitFor();
+    await page.getByRole('heading', { name: 'Your meal plan', exact: true }).waitFor();
     assert.match(await page.locator('.aside-total').innerText(), /2,158\.00/);
     assert.equal(allocations, 1);
     const stale = await page.evaluate(async id => (await fetch(`/api/orders/${id}/capture`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, oldId); assert.equal(stale, 409);
@@ -99,17 +99,17 @@ try {
   // Exercise 100 people using one segment, not 100 guest rows.
   const largeCtx = await context(); const large = await open(largeCtx);
   await large.getByLabel('Total people', { exact: true }).fill('100'); await large.getByLabel(/Total budget/).fill('10000');
-  await large.getByRole('button', { name: 'Add segment', exact: true }).click();
-  await large.getByRole('textbox', { name: 'Label for segment 1', exact: true }).fill('All participants');
+  await large.getByRole('button', { name: 'Add group', exact: true }).click();
+  await large.getByRole('textbox', { name: 'Name for group 1', exact: true }).fill('All participants');
   await large.getByRole('spinbutton', { name: 'People in All participants', exact: true }).fill('100');
-  await confirmSegments(large); await large.getByRole('button', { name: 'Allocate meals' }).click();
-  await large.getByRole('heading', { name: 'Meals by segment.' }).waitFor();
+  await confirmSegments(large); await large.getByRole('button', { name: 'Generate meal plan' }).click();
+  await large.getByRole('heading', { name: 'Your meal plan', exact: true }).waitFor();
   assert.equal(await large.locator('.meal-segment').count(), 1);
   assert.match(await large.locator('.segment-subtotal').innerText(), /100 \/ 100 meals assigned/);
   assert((await large.locator('.meal-line').count()) <= 15);
   await large.getByRole('button', { name: 'Edit requirements' }).click();
   await large.getByRole('checkbox', { name: 'Vegan for All participants', exact: true }).check();
-  await confirmSegments(large); await large.getByRole('button', { name: 'Allocate meals' }).click();
+  await confirmSegments(large); await large.getByRole('button', { name: 'Generate meal plan' }).click();
   await large.getByRole('alert').filter({ hasText: 'INFEASIBLE' }).waitFor();
   results.push({ headcount: 100, quantityAllocation: 'passed', insufficientVeganStock: 'INFEASIBLE' });
   await largeCtx.close();
@@ -117,20 +117,20 @@ try {
   // Add/edit/remove and count mismatches are visible before allocation, including the 12-segment UI cap.
   const controlsCtx = await context(); const controls = await open(controlsCtx);
   await controls.getByLabel('Total people', { exact: true }).fill('3');
-  await controls.getByRole('button', { name: 'Add segment', exact: true }).click();
-  await controls.getByRole('spinbutton', { name: 'People in Segment 1', exact: true }).fill('2');
+  await controls.getByRole('button', { name: 'Add group', exact: true }).click();
+  await controls.getByRole('spinbutton', { name: 'People in Group 1', exact: true }).fill('2');
   assert.match(await controls.locator('.coverage').innerText(), /Requirements not confirmed: 1 people/);
-  await controls.getByRole('button', { name: 'Add segment', exact: true }).click();
-  await controls.getByRole('spinbutton', { name: 'People in Segment 2', exact: true }).fill('2');
+  await controls.getByRole('button', { name: 'Add group', exact: true }).click();
+  await controls.getByRole('spinbutton', { name: 'People in Group 2', exact: true }).fill('2');
   assert.match(await controls.locator('.coverage').innerText(), /exceed the event headcount by 1/);
-  assert(await controls.getByRole('button', { name: 'Allocate meals' }).isDisabled());
-  await controls.getByRole('spinbutton', { name: 'People in Segment 2', exact: true }).fill('1');
-  await confirmSegments(controls); assert(await controls.getByRole('button', { name: 'Allocate meals' }).isEnabled());
-  await controls.getByRole('button', { name: 'Remove Segment 1', exact: true }).click();
+  assert(await controls.getByRole('button', { name: 'Generate meal plan' }).isDisabled());
+  await controls.getByRole('spinbutton', { name: 'People in Group 2', exact: true }).fill('1');
+  await confirmSegments(controls); assert(await controls.getByRole('button', { name: 'Generate meal plan' }).isEnabled());
+  await controls.getByRole('button', { name: 'Remove Group 1', exact: true }).click();
   assert.match(await controls.locator('.coverage').innerText(), /Requirements not confirmed: 2 people/);
-  assert(await controls.getByRole('button', { name: 'Allocate meals' }).isDisabled());
-  while ((await controls.locator('.segment-edit-heading').count()) < 12) await controls.getByRole('button', { name: 'Add segment', exact: true }).click();
-  assert(await controls.getByRole('button', { name: 'Add segment', exact: true }).isDisabled());
+  assert(await controls.getByRole('button', { name: 'Generate meal plan' }).isDisabled());
+  while ((await controls.locator('.segment-edit-heading').count()) < 12) await controls.getByRole('button', { name: 'Add group', exact: true }).click();
+  assert(await controls.getByRole('button', { name: 'Add group', exact: true }).isDisabled());
   results.push({ segmentAddEditRemove: 'passed', shortfallAndExcess: 'blocked', uiSegmentLimit: 12 });
   await controlsCtx.close();
 
