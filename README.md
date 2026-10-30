@@ -1,14 +1,18 @@
 # GroupTable
 
-A local-first group meal ordering prototype. Enter dietary segments with quantities or extract them from anonymous replies, review mutually exclusive counts, allocate meal quantities, and check out with PayPal Sandbox.
+A group meal planning prototype for the Qloo Agentic Hackathon. Confirm dietary groups, select favourite restaurant branches, and let a bounded AI planner prepare a Qloo-informed meal draft within the event budget. Review and adjust the draft before simulated checkout.
+
+**[Try the live demo](https://grouptable.onrender.com)** · [Product and implementation](IDEA_AND_DEMO.md) · [Verification record](docs/ACCEPTANCE.md) · [MIT license](LICENSE)
+
+The public demo uses live Qloo and free-model planning, labelled example extraction, and simulated payment. No account or payment card is required. The free host may need 50 seconds or longer to wake after inactivity. API availability and usage limits can interrupt live planning; the allocator also works without AI.
 
 **This is a hackathon prototype. No food is ordered or delivered. Fixture payment is a simulation, and Sandbox payment uses test funds.** Dietary checks use demonstration labels; they do not establish real allergen safety or cross-contact controls.
 
 ## Requirements
 
 - Node.js **24.22.1** (see `.nvmrc`) and npm. Node's built-in `node:sqlite` is used; no database server is needed. This API is a release candidate in the pinned runtime.
-- One local Node server and a modern browser, on the same machine.
-- Optional: an OpenRouter project key with an account-owner-approved spending cap, and PayPal Sandbox application credentials.
+- For local development, one Node server and a modern browser on the same machine.
+- Optional: authorised Qloo hackathon credentials and an OpenRouter project key for live planning. Paid reply extraction and PayPal Sandbox credentials are separate opt-in integrations; neither is required for the default fixture workflow.
 
 The application uses English UI, HKD, a fixed HK$80 delivery charge, one fictional supplier, 15 meals, 1–100 people and at most 12 dietary segments. These are prototype bounds, not a guarantee of sufficient menu stock or feasibility. Stock applies to each demonstration order independently. Prices are integer cents. Optional Qloo cuisine associations can prioritise mapped meals. This is a first-feasible search, not taste optimisation or a guarantee of group agreement. There is no account system, real delivery or production payment mode.
 
@@ -23,7 +27,7 @@ Run each command separately from this project directory. Dependency installation
 
 The browser URL, `APP_URL`, PayPal return URLs and port must match. If port 3000 is occupied, stop the other application or explicitly change `APP_URL` and the Next port together. Requests from other origins are rejected.
 
-For a production-mode local build, run `npm run build`, then `npm start`. Keep the server bound to loopback. This application has not been designed or hardened for public deployment.
+For a production-mode local build, run `npm run build`, then `npm start`. The default start command binds to loopback for local use. The hosted hackathon demo is a prototype with the public-demo limitations below, not a production ordering service.
 
 ## Public-demo security boundary
 
@@ -33,7 +37,7 @@ These controls do not authenticate visitors or prevent deliberate API abuse. Any
 
 Render Free has an ephemeral filesystem: local SQLite orders and payment recovery mappings can disappear on restart, redeployment or idle shutdown. Do not rely on that setup for durable orders or payment reconciliation. Keep public payment demonstrations simulated until storage and access controls are reviewed. Choosing a persistent disk/database, changing hosting or adding authentication needs owner approval; none was changed by this pass.
 
-See `docs/ACCEPTANCE.md` for executed checks and remaining deployment gaps. The current GitHub/Render version is separate from unpushed local changes.
+See `docs/ACCEPTANCE.md` for executed checks and remaining deployment gaps. The live demo and local fixture setup use separate service modes; check the mode labels before testing.
 
 ## Try the fixture workflow
 
@@ -211,10 +215,33 @@ Tests use synthetic input, temporary databases, and mocked external APIs. They d
 
 `tests/segment-browser.mjs` is the current optional browser acceptance entry point. It uses an existing Playwright installation without installing one, synthetic data and fixture payment. Set `GROUPTABLE_TEST_URL` to match the local server's `APP_URL`, and `PLAYWRIGHT_MODULE` if using an existing installation outside this project. The earlier `browser-smoke.mjs` and `replacement-browser.mjs` entry points delegate to this segment workflow. Do not point these synthetic-data tests at an application connected to live services.
 
-## Submission and demo
+## Judge testing guide
 
-Include public source, MIT license, complete setup instructions and an English public YouTube video under three minutes. The video must show the working application, not substitute for it. Obtain explicit approval before publishing any repository or video. Do not include secrets in either.
+Use synthetic data only. Allow 5–10 minutes after the site has loaded.
 
-Suggested sequence: messy anonymous replies → correct a requirement → confirmed allocation → impossible budget → restore the budget → real Sandbox checkout → verified confirmation and packing summary. Use live AI for the final recording and disclose the fictional catalog. Judges need their own valid credentials or a private access arrangement accepted by the organiser; no keys belong in public setup files.
+1. Set **Total people** to **2** and **Total budget** to **HK$300**, including delivery.
+2. Create two dietary groups of one person each: one **Vegetarian**, one with no known restrictions. Confirm each group and check **Each person is counted once**. Planning stays disabled until the requirements are confirmed.
+3. Search for a restaurant such as **Din Tai Fung**, check the branch address, and select one returned branch. Skip manual profile preview when testing the agent; it can obtain the profile itself.
+4. Click **Plan with AI** once. Inspect the meal draft, cuisine evidence and planning details. There should be two compatible meals within HK$300 including delivery. The exact dish can vary.
+5. Temporarily change a one-person group's quantity to two. Approval should be disabled. Restore one meal and confirm the error clears. Manual edits do not rerun the planner.
+6. Click **Approve order & continue**, **Simulate PayPal approval**, then **Complete simulated payment**. Expect **Simulation complete** and a packing summary. Refresh and check that the approved choices remain.
 
-Official references: [OpenRouter quickstart](https://openrouter.ai/docs/quickstart), [OpenRouter JSON outputs](https://openrouter.ai/docs/guides/features/structured-outputs), [PayPal Orders](https://developer.paypal.com/api/orders/v2), [PayPal idempotency](https://developer.paypal.com/api/rest/reference/idempotency/), [PayPal competition rules](https://paypalaihackathon.devpost.com/rules).
+For a budget failure check, use **HK$50** for the same event and choose **Generate without AI**. Delivery alone costs HK$80, so allocation must fail without changing the confirmed budget or requirements. This path makes no model request.
+
+On 31 October, a separate manual computer-use check completed the live restaurant search → AI plan → simulated checkout → reload flow at HK$220, with two meals retained. Quantity-error blocking and correction passed. This was a synthetic-data demonstration, not a real food order, payment, physical-mobile-device test or uncoached participant study. See the acceptance record for the separate local automated checks.
+
+## Qloo submission
+
+Submit the externally hosted demo URL, a public source repository containing setup instructions and the MIT license, and an English description explaining the workflow and Qloo's role. Complete the required Devpost fields and formally submit the project. A saved draft is not a submission. Keep the demo available for judging.
+
+The official Qloo requirements state that a demo video is **not required**. Real PayPal Sandbox checkout is not a Qloo submission requirement; the public demonstration uses simulated payment. Never publish API keys or payment credentials. Repository visibility must be public before submission, and the license should be detectable in GitHub's About section.
+
+### Live service limits and recovery
+
+The application currently permits at most **18 model requests per Node process** and **20 Qloo requests per process**. One taste-informed plan uses up to three model requests, plus a restaurant search and a profile lookup. The model cap therefore supports at most six full three-request plans per process, even if the provider has more daily capacity. Other visitors and failed requests also consume the relevant limits. Current remaining application capacity is not exposed publicly.
+
+These lifetime caps are a known judging-availability risk. They are not a durable daily quota or a promise that the demo remains usable throughout judging. Free-model provider limits apply independently; an owner can inspect the existing key's remaining daily requests through OpenRouter's read-only key endpoint without running inference. Do not buy credits or enable a paid fallback to bypass a limit without owner approval.
+
+If a service reports a limit, do not repeatedly retry or restart merely to clear counters. Review the relevant application's and provider's usage first. Preserve the organiser's input. To use the allocator alone, clear unavailable taste preferences explicitly and choose **Generate without AI**; this does not demonstrate live Qloo or live agent execution. Changes to quota policy or production settings require owner approval. Paid extraction stays off and payment stays simulated.
+
+Official references: [Qloo requirements](https://qloo.devpost.com/), [Qloo rules](https://qloo.devpost.com/rules), [OpenRouter limits](https://openrouter.ai/docs/api-reference/limits), [OpenRouter quickstart](https://openrouter.ai/docs/quickstart), [PayPal Orders](https://developer.paypal.com/api/orders/v2).
