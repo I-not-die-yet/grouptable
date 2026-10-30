@@ -10,7 +10,7 @@ A local-first group meal ordering prototype. Enter dietary segments with quantit
 - One local Node server and a modern browser, on the same machine.
 - Optional: an OpenRouter project key with an account-owner-approved spending cap, and PayPal Sandbox application credentials.
 
-The application uses English UI, HKD, a fixed HK$80 delivery charge, one fictional supplier, 15 meals, 1–100 people and at most 12 dietary segments. These are prototype bounds, not a guarantee of sufficient menu stock or feasibility. Stock applies to each demonstration order independently. Prices are integer cents. There is no taste optimisation, Qloo, account system, real delivery, or production payment mode.
+The application uses English UI, HKD, a fixed HK$80 delivery charge, one fictional supplier, 15 meals, 1–100 people and at most 12 dietary segments. These are prototype bounds, not a guarantee of sufficient menu stock or feasibility. Stock applies to each demonstration order independently. Prices are integer cents. Optional Qloo cuisine associations can prioritise mapped meals. This is a first-feasible search, not taste optimisation or a guarantee of group agreement. There is no account system, real delivery or production payment mode.
 
 ## Install and run
 
@@ -56,9 +56,58 @@ The server independently validates the final quantity assignments and recalculat
 
 Replacement controls stop after approval. **Edit order** invalidates its old checkout before reopening Review with the saved choices. Capturing, pending and unknown states retain their existing editing/payment locks. Guest-based old orders use the compatibility path below.
 
+## Optional Qloo taste preferences
+
+On Requirements, search for favourite restaurant branches, select up to three, and build a taste profile before allocating. Fixture mode uses three invented restaurants; search **Example**. Their names and association scores are synthetic, not stored Qloo responses. Nothing is sent to Qloo in fixture mode.
+
+To use the authorised hackathon key, set these values only in your ignored `.env.local`, then restart:
+
+```dotenv
+QLOO_MODE=live
+QLOO_API_URL=https://hackathon.api.qloo.com
+QLOO_API_KEY=your_hackathon_key
+```
+
+The server searches `/search` and requests cuisine tag affinities from `/v2/insights` with `filter.type=urn:tag`, `filter.tag.types=urn:tag:cuisine:qloo` and the selected restaurant entity IDs. Search shows branch addresses for explicit selection, excludes generic bars/cafes, and has no automatic fallback to fixtures. Restaurant names/IDs go to Qloo; dietary replies and payment details do not. The API key stays server-side; the host is fixed to the hackathon service and redirects are refused. Access lasts only as long as the hackathon key remains valid.
+
+A small house-authored mapping in `src/lib/taste.ts` links Chinese/Cantonese associations to Chinese-inspired fried rice, beef and peanut noodles; Italian to mushroom penne; Indian to paneer. These are broad culinary bridges, not Qloo ratings of our fictional meals. Ambiguous meals remain unmapped. Only recognised cuisine tags contribute: dietary and sustainability tags cannot create dietary requirements or certify safety. Missing mappings produce a visible explanation and leave allocation price-first.
+
+Matched meals are tried before neutral meals; price/ID break ties. The existing 50,000-state search, shared stock, dietary checks and delivery-inclusive budget still apply, including affordable alternatives when preferred meals cost too much. This is one combined starting preference for the event, not per-person fairness, maximum satisfaction or a probability of liking a meal. Review shows input restaurants, returned cuisines and the mapping reasons. Manual changes remain authoritative and never regenerate choices.
+
+Qloo lookups happen only on explicit button presses: one request per search or profile, one in flight, 30-second timeout, no retries, and a 20-call Node-process cap including failures. Restart resets that cap; it is not a monetary guarantee. Selections and profiles are session-owned, held in server memory for one hour, with at most 100 entries per cache. Restart, expiry or cache eviction requires another lookup. No Qloo records are committed to source control. Taste evidence is temporary; final approved meal choices and prices persist in the existing order snapshot. No database schema or request data-model migration is required.
+
+Changing seeds or clearing a profile invalidates the draft allocation. Lookup errors preserve dietary input and let the organiser clear taste preferences and continue. Approved orders must use the existing **Edit order** path before changing choices; payment locks remain unchanged.
+
+Official reference: [Qloo taste analysis](https://docs.qloo.com/reference/taste-analysis).
+
+## Bounded AI planner
+
+After confirming dietary segments and exclusivity, optionally search and select restaurant branches, then press **Simulate AI planner** or **Plan with AI**. Building a taste profile manually is not required. The agent requests `get_cuisine_profile` when branches are selected, requests the existing allocation/independent validator through `allocate_meals`, then uses `finish_plan` to hand back a verified draft or a permitted next step. Without selected restaurants it can allocate directly. Review retains a factual activity record; manual edits never restart the agent.
+
+`AGENT_MODE=fixture` is the default: the sequence is deterministic and labelled as simulated, with no model call. Selected restaurants require `QLOO_MODE=fixture` in this mode; otherwise the server refuses rather than making an unexpected live lookup. The existing **Allocate meals** button remains available independently.
+
+For the tested free-model path, set locally and restart:
+
+```dotenv
+AGENT_MODE=live
+OPENROUTER_API_KEY=your_project_key
+```
+
+Set `QLOO_MODE=live` and the Qloo credentials above to combine it with real taste evidence. Live AI with fixture Qloo is also explicitly labelled by the activity sources. Real extraction and payment have separate mode switches; enabling the planner does not enable either.
+
+The planner uses the fixed `nvidia/nemotron-3.5-lightning:free` model, zero provider prompt/completion/request price ceilings, no provider fallback, no model fallback, no paid tools and no retries. It does not use the paid extraction model or `ALLOW_PAID_AI` gate. Limits: one concurrent planning run per Node process, at most three model requests per run, at most 18 model requests per process, 1,500 output tokens per request, 30 seconds per model request and a 90-second run deadline. A run is refused unless three request slots remain. Restart resets the local counters; free-service availability and account rate limits remain outside the application's control. Reported nonzero model cost blocks further planning in that process for usage review.
+
+The model receives anonymous segment IDs/counts/requirement codes, event amounts and selected restaurant IDs, plus necessary cuisine/allocation tool results. Original replies, source excerpts, editable labels, keys and payment details are omitted. Use synthetic or consented inputs; service-side data policies still apply. The endpoint is `POST /api/agent/plan` with `{ request, restaurantIds }`, using existing origin/session controls.
+
+The server holds the confirmed event. Tool schemas cannot change its requirements, budget, headcount or prices; payment/approval tools do not exist. It rejects invented tool names, extra arguments, unselected branches, repeated operations and handoffs inconsistent with the verified result. Model prose and private reasoning are not displayed. Public activity and recovery messages are rendered from verified tool results and an allowed action set, so a suggestion to relax dietary requirements cannot reach the organiser through model free text.
+
+`INFEASIBLE` asks the organiser to review availability or decide whether to increase the budget; it never changes constraints. `SEARCH_LIMIT` remains distinct. Failed Qloo requests ask for another selection or explicit clearing of taste preferences; they do not silently allocate without requested taste. Incomplete/invalid model output leaves manual planning available. The first feasible result remains the allocator's goal; this agent is not a new preference/fairness optimiser.
+
+Agent activity and taste evidence are temporary browser state; approved choices still use the existing SQLite snapshot. Refreshing a draft does not restore its activity, but paid/approved snapshots retain their existing restoration path. No database migration, new dependency, conversational editor or automatic checkout was added.
+
 ## Enable real AI extraction
 
-OpenRouter calls are paid and go through an external provider. The account owner must approve the use, create a dedicated project key and configure a provider-side monetary cap before enabling live mode. Do not paste keys into chat, source files, screenshots or shared documents.
+The separate dietary-extraction path below uses a paid model through OpenRouter. The free planner above has its own restricted mode and does not enable extraction. The account owner must approve the use, create a dedicated project key and configure a provider-side monetary cap before enabling live mode. Do not paste keys into chat, source files, screenshots or shared documents.
 
 Set these values in your untracked `.env.local`, then restart the server:
 
@@ -109,6 +158,9 @@ Credentials are held server-side. The local session cookie associates a browser 
 
 | Endpoint | Purpose |
 | --- | --- |
+| `POST /api/agent/plan` | Bounded model-directed taste/allocation tools and verified organiser handoff |
+| `POST /api/taste/search` | Search restaurant branches using Qloo or labelled fixtures |
+| `POST /api/taste/profile` | Build a session-owned cuisine profile and explain menu mappings |
 | `POST /api/extract` | Extract candidate requirements, evidence and unresolved questions |
 | `POST /api/allocate` | Return an allocation or `UNRESOLVED`, `INFEASIBLE`, `SEARCH_LIMIT` |
 | `POST /api/orders` | Validate assignments and persist a server-priced snapshot |
@@ -118,7 +170,7 @@ Credentials are held server-side. The local session cookie associates a browser 
 | `GET /api/orders/:id/payment` | Retrieve and reconcile payment state |
 | `POST /api/orders/:id/invalidate` | Invalidate checkout before editing |
 
-The segment allocator searches directly over item quantities per segment, bounded by 50,000 states, and uses an independent validator. It never expands the event into 100 guest assignments. It finds the first feasible combination in stable price/ID order, not a guaranteed cheapest or best-tasting order. Inadequate compatible stock can return `INFEASIBLE`; exhausted search returns `SEARCH_LIMIT`, which is not proof of infeasibility. Complex cases can reach that bound even at a supported headcount.
+The segment allocator searches directly over item quantities per segment, bounded by 50,000 states, and uses an independent validator. It never expands the event into 100 guest assignments. It finds the first feasible combination in stable price/ID order, or cuisine-priority then price/ID order when an optional server-held taste profile is supplied. Neither path guarantees a globally cheapest or best-tasting order. The existing allocation payload remains supported; the taste path uses `{ request, tasteId }` and rejects client-supplied scores. Inadequate compatible stock can return `INFEASIBLE`; exhausted search returns `SEARCH_LIMIT`, which is not proof of infeasibility. Complex cases can reach that bound even at a supported headcount.
 
 Limits are defined centrally in `src/lib/limits.ts` and used by UI, request schemas, extraction and allocation. Version-2 requests contain `version: 2`, event headcount/budget/currency/delivery/revision, `exclusiveConfirmed`, and `segments`. Each meal assignment is `{ segmentId, itemId, quantity }`; no client price is accepted. The segment types and strict schemas are in `src/lib/segments.ts`. The existing endpoint paths are reused. Legacy request/allocation shapes remain accepted for saved-order compatibility and regression tests; they do not define the primary interface.
 
@@ -143,7 +195,7 @@ npm test
 npm run build
 ```
 
-Tests use synthetic input, temporary databases, and mocked external APIs. They do not spend credits, contact private accounts, or prove live LLM extraction quality or live PayPal compatibility. The current segment fixtures and mocked adapter tests validate data handling and count normalization, not real extraction quality. Unfamiliar aggregate wording and messy individual replies must still be tested with the actual approved OpenRouter account. Historical guest-adapter tests remain as regressions, not current UI acceptance.
+Tests use synthetic input, temporary databases, and mocked external APIs. They do not spend credits, contact private accounts, or prove live LLM extraction quality or live PayPal compatibility. `tests/agent-browser.mjs` covers the simulated planner, activity, manual edits, infeasibility and simulated checkout; it targets the isolated fixture test server on port 3031. `tests/taste-browser.mjs` covers fixture cuisine changes, manual edits and simulated checkout at desktop/mobile sizes; run it only with forced fixture modes, like the segment workflow below. The current segment fixtures and mocked adapter tests validate data handling and count normalization, not real extraction quality. Unfamiliar aggregate wording and messy individual replies must still be tested with the actual approved OpenRouter account. Historical guest-adapter tests remain as regressions, not current UI acceptance.
 
 `docs/ACCEPTANCE.md` records actual evidence separately from remaining live checks. A clean setup on another teammate's machine and an unfamiliar person completing the order without coaching are still required.
 

@@ -55,10 +55,10 @@ export function updateSegmentMeals(request: SegmentRequest, assignments: Segment
   return validateSegments(request, next, menu);
 }
 
-export function allocateSegments(request: SegmentRequest, menu: MenuItem[], limit: number = LIMITS.searchStates): SegmentResult {
+export function allocateSegments(request: SegmentRequest, menu: MenuItem[], limit: number = LIMITS.searchStates, scores: Record<string, number> = {}): SegmentResult {
   const unresolved = requirementIssues(request);
   if (unresolved.length) return { ok: false, code: 'UNRESOLVED', message: unresolved[0].message, searched: 0 };
-  const sorted = [...menu].sort((a, b) => a.priceCents - b.priceCents || a.id.localeCompare(b.id));
+  const sorted = [...menu].sort((a, b) => (scores[b.id] ?? 0) - (scores[a.id] ?? 0) || a.priceCents - b.priceCents || a.id.localeCompare(b.id));
   const groups = request.segments.map(segment => ({ segment, items: sorted.filter(item => segmentEligible(segment, item)) })).sort((a, b) => a.items.length - b.items.length || b.segment.headcount - a.segment.headcount);
   if (groups.some(g => g.items.reduce((sum, item) => sum + item.stock, 0) < g.segment.headcount) || sorted.reduce((sum, item) => sum + item.stock, 0) < request.headcount) return { ok: false, code: 'INFEASIBLE', message: 'The menu does not have enough compatible stock for this group.', searched: 0 };
   const stock = new Map(sorted.map(item => [item.id, item.stock]));
@@ -78,7 +78,9 @@ export function allocateSegments(request: SegmentRequest, menu: MenuItem[], limi
       }
       if (itemIndex === group.items.length) return false;
       const item = group.items[itemIndex];
-      if (cost + remaining * item.priceCents + request.deliveryCents > request.budgetCents) return false;
+      // Taste ordering is not price ordering. Use a safe bound across all remaining items.
+      const cheapest = Math.min(...group.items.slice(itemIndex).map(i => i.priceCents));
+      if (cost + remaining * cheapest + request.deliveryCents > request.budgetCents) return false;
       if (group.items.slice(itemIndex).reduce((sum, i) => sum + (stock.get(i.id) ?? 0), 0) < remaining) return false;
       const available = stock.get(item.id)!;
       for (let quantity = Math.min(remaining, available); quantity >= 0; quantity--) {

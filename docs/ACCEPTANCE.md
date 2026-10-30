@@ -2,6 +2,93 @@
 
 This record distinguishes executed local checks from live integration and human acceptance. It is not a claim of production readiness. The primary interface now uses dietary segments and quantities; the older guest-based UI record is retained at the end as history.
 
+## Teammate payment-race fix integrated locally — 2026-10-30
+
+- Applied the reviewed changes from commit `425939d05095c0ef496dfd6aadb0b2628eedeaae` by GitHub account UHTHU to `src/lib/paypal.ts` and `tests/payments.test.ts`. Both resulting files match that commit's Git blob hashes. Existing local Qloo/agent additions were preserved; no branch, commit, merge or push was performed.
+- Reconciliation reads and updates the latest order inside a transaction. Delayed status responses cannot overwrite a newer capture submission, and delayed errors do not overwrite newer capturing, paid or stale states.
+- **132 tests pass across 13 files** in the actual project checkout. Type checking, full ESLint and the production build pass. This includes the four added race cases and existing Qloo/agent regressions.
+- Previously, the added cases failed against the old payment implementation in an isolated copy; the reviewed fix made all pass. This is synthetic regression evidence, not a recorded real-payment incident.
+- No UI polish, dependency installation, provider inference, real PayPal request, database migration or publishing was done. Browser/live-service acceptance was not rerun for this payment-only integration; the earlier records remain separate.
+
+## Integrated bounded planner — 2026-10-29
+
+### Implemented behaviour
+
+- Requirements offers a separate **Plan with AI** / labelled simulated-planner action. Confirmed event inputs remain authoritative; selected branches can be passed without manually building a taste profile. The model requests cuisine evidence, allocation/independent validation and an allowed organiser handoff. No conversational editor, automatic restaurant search/disambiguation, extraction redesign, database change, package installation or payment tool was added.
+- The live model is fixed to `nvidia/nemotron-3.5-lightning:free`, with zero provider price ceilings and no fallback/retry. Three requests per run, 18 per process, one run at a time, 30 seconds per model request and a 90-second run deadline bound usage. Nonzero reported cost blocks further planning for review. No paid extraction mode was enabled.
+- Tools cannot change budget, headcount, requirements or prices. Extra arguments, unselected branches, repeated operations, unsupported tools and inconsistent handoffs are rejected. Raw model prose is never displayed: canonical result/recovery messages prevent the earlier probe's dietary-relaxation suggestion reaching the organiser. Model inputs omit original replies, excerpts, labels and credentials.
+- Review shows factual tool activity, with real/local/simulated sources. Manual edits never restart the planner. Existing approval, checkout invalidation and payment locks are reused. Agent trace/taste selection are temporary; approved meal snapshots retain existing persistence.
+
+### Files changed
+
+- Planner: `src/lib/agent.ts`, `src/lib/agent-types.ts`, `src/app/api/agent/plan/route.ts`.
+- Interface: `src/components/GroupTable.tsx`, `src/components/TastePreferences.tsx`, `src/app/page.tsx`, `src/app/globals.css`.
+- Verification: `tests/agent.test.ts`, `tests/agent-browser.mjs`.
+- Setup/documentation: `.env.example`, README, CURRENT_DEMO, IDEA_AND_DEMO and this acceptance record. Local `.env.local` only gained the ignored free-planner mode setting; secrets were not copied into tracked files.
+
+### Executed tests and build
+
+- **128 tests pass in 13 Vitest files**, including 15 new planner tests. Typecheck, ESLint and production build passed. Tests cover fixture/no-network isolation, correct model/tool calls, privacy of raw input, immutable event constraints, forged tool arguments, unselected IDs, repeated operations, invalid independent validation, distinct search-limit handling, provider/auth/rate-limit/timeout/malformed responses, quota/concurrency, nonzero-cost lockout and final edited snapshots. Unit tests use synthetic credentials and mocked external APIs.
+- Final production fixture browser acceptance passed at desktop 1440×1000 and mobile 390×844 via `tests/agent-browser.mjs`. It covered unconfirmed-input blocking, selecting a fixture restaurant without manually building a profile, a three-step simulated activity record and a two-pasta draft. A manual one-pasta/one-chicken split remained HK$234 through simulated checkout, packing, confirmation and reload, with no extra planner request. Editing invalidated the prior checkout; stale capture returned HTTP 409.
+- A separate HK$100 fixture scenario returned `INFEASIBLE`, no draft and unchanged requirements/headcount/budget. Explicitly changing budget and rerunning succeeded. New controls measured at least 44px; no horizontal overflow or page errors were found. Eight screenshots under ignored `artifacts/agent-*.png` were inspected. The existing segment browser regression also passed again. All browser external requests were blocked; no real provider call occurred in those runs.
+
+### Executed live application acceptance
+
+Two application-level runs used exactly **five real free-model requests**, with API-reported total model cost **US$0**, and **two real Qloo requests** (one branch search plus the agent's profile lookup). Original extraction and payment were forced to fixture modes, and a separate temporary database was used.
+
+1. The model requested `get_cuisine_profile` for the selected branch; real Qloo returned a profile; the model requested `allocate_meals`; the actual server allocator/independent validator produced a valid two-person draft; the model selected the verified `finish_plan` handoff. All three activity steps came from executed tools, not a fixture trace.
+2. After an explicit manual edit to one pasta and one chicken meal, the application created the server-priced HK$234 snapshot, completed simulated approval/capture and retrieved the same final assignments. This is not a real PayPal Sandbox transaction.
+3. A second planning run with HK$100 and no taste seeds used two real model requests. The allocator returned `INFEASIBLE`; the model chose the allowed organiser-decision handoff. The displayed response preserved requirements/headcount/budget and did not suggest relaxing diets. No additional Qloo lookup occurred.
+
+These checks establish one successful integrated live-model/Qloo planning path plus one live infeasibility path. They do not establish universal model reliability, real unfamiliar-reply extraction, preference quality, real PayPal acceptance, public hosting, competition approval or uncoached human usability. Raw live responses remain outside the repository in private temporary files. No secrets were printed or published, and no Git mutation was performed.
+
+## Earlier standalone OpenRouter probe — 2026-10-29
+
+Historical pre-integration check; the integrated acceptance above supersedes its unimplemented-agent status.
+
+A standalone capability probe used the authorised local OpenRouter key and `nvidia/nemotron-3.5-lightning:free`. The public model catalogue was checked first for zero pricing and `tools` / `tool_choice` support. Requests fixed this free model, disabled provider fallback and set provider prompt/completion/request price ceilings to zero. No application settings or source code were changed.
+
+Exactly three real inference requests returned HTTP 200; each API usage response reported cost US$0:
+
+1. Given a confirmed synthetic event and an explicitly selected invented restaurant branch, the model requested `get_cuisine_profile` with the correct branch ID.
+2. After receiving a synthetic cuisine-profile tool result, it requested `allocate_meals` with the correct six-person headcount, two vegetarian people, HK$100 delivery-inclusive budget and profile ID. Structured argument checks passed.
+3. After a synthetic `INFEASIBLE` result explaining the HK$488 minimum, it issued no further tool call and asked the organiser for a decision instead of claiming success or automatically increasing the budget.
+
+**Semantic issue observed:** the final reply also suggested changing headcount, restaurant or dietary requirements. In particular, relaxing dietary requirements must not be offered as a budget remedy. A production agent needs a narrower set of permitted recovery choices and a regression check for this wording/behaviour. The reply did not change stored requirements, approve a payment or execute another action.
+
+This establishes that the key and one free model were usable for this short tool-calling exchange from this environment. It does not establish comparative model quality, ongoing availability, real extraction accuracy or successful application integration. The alternate free candidate was not called because the first model completed the three-request probe.
+
+Cuisine and allocation tool results were stubs, not real Qloo calls or execution of GroupTable's allocator. No real user replies, Qloo records, payment service, paid model, installations, Git operations or publishing were involved. At that earlier probe stage, the application agent was still unimplemented. The later integrated checks above supersede that status; unfamiliar-reply extraction, real PayPal Sandbox and uncoached human testing remain outstanding. Keys were never included in prompts, output or this record.
+
+## Qloo cuisine-priority extension — 2026-10-28
+
+### Implemented
+
+- Optional restaurant search and selection (up to three explicit branches), cuisine-profile lookup and visible house-authored menu mapping on Requirements. Review retains the provenance explanation. Invented fixtures are clearly labelled and never substitute silently for failed live responses.
+- Only five unambiguous cuisine-inspired sample dishes have coarse mappings; other dishes remain neutral. Dietary/sustainability associations are excluded from the cuisine whitelist and cannot alter confirmed restrictions or unknown attributes.
+- Session-owned, expiring server-held profiles supply ranking to the existing bounded allocator. Submitted scores are rejected. Hard dietary, stock, quantity, budget and independent validation checks still govern feasibility. A corrected lower-bound calculation remains valid when preferred meals are more expensive than later choices.
+- Manual replacement, approved snapshots, consolidated PayPal lines, confirmation, packing and payment locks reuse the existing paths. No dependency, core request schema or database table change was made. Local secret settings remain ignored; no Git/publishing action was performed.
+
+### Executed automated and real-service checks
+
+- **113 tests pass across 12 Vitest files**. Type checking, ESLint and a production build pass. New tests cover changed cuisine inputs with the same event, affordable fallback, incompatible/unknown/unavailable meals, shared stock, manual-edit preservation, neutral mappings, search limits, session ownership/expiry, forged ranking/price rejection, empty/malformed/error responses, no retries, concurrency/call limits and fixture isolation.
+- Mocked PayPal verification follows a taste-informed allocation manually edited to one pasta and one chicken meal: HK$154 meal subtotal + HK$80 delivery = HK$234. Final saved quantities, payment item names/total and completed verified capture agree. This is not a real PayPal Sandbox transaction.
+- **Four real Qloo hackathon requests** ran through the implemented local application endpoints: two restaurant searches and two tag-profile calls using the authorised key, public restaurant queries and synthetic event requirements. Both returned parseable profiles with menu matches. For the identical two-person event/menu/budget, the no-taste baseline was two tofu meals (HK$216 including delivery); the two profiles produced two egg-fried-rice meals (HK$220) and two mushroom pasta meals (HK$232). This demonstrates causal influence on selection within this test, not evidence of diners' preference or satisfaction. Raw Qloo records/affinities are retained only in temporary private files, not this repository.
+- The live smoke server forced OpenRouter extraction and payment to fixture modes and used a separate temporary SQLite database. No language-model call, real payment, personal dietary reply, publishing or Git operation was used.
+
+### Browser verification
+
+- `tests/taste-browser.mjs` passed against the final production build at desktop 1440×1000 and mobile 390×844. The browser blocked all external requests; AI, Qloo and payment were forced to fixture modes, using an isolated temporary database.
+- The same two-person event initially chose tofu with no taste profile. The invented Italian profile changed it to two pasta meals; the invented Cantonese profile changed it to egg fried rice. Search with no results and clearing a profile both worked. Switching a preference required explicit allocation; manual changes did not silently call `/api/allocate`.
+- A manual split of one pasta and one chicken meal yielded HK$234 including delivery and persisted through simulated approval/capture, confirmation, packing and reload. No claim of real PayPal payment is made.
+- Requirements, Review and Confirmation had no horizontal overflow at either width; browser page errors were zero. New taste controls and meal editing controls measured at least 44px high after correction. Screenshots were inspected at both sizes, with no material new visual issue observed. This was automated verification, not an unfamiliar human test.
+- Final screenshots: ignored `artifacts/taste-{requirements,review,confirmation}-{desktop,mobile}.png`.
+- The existing `tests/segment-browser.mjs` also passed again against the final build, covering the earlier 30-person editing/checkout, stale-checkout rejection, 100-person infeasibility and compatibility workflows.
+
+### Still unverified
+
+Real OpenRouter extraction and an unfamiliar person's uncoached workflow remain outstanding. A real PayPal Sandbox cycle remains separate and unverified; it is not established by Qloo success or simulated checkout. These checks, competition eligibility/submission acceptance, public hosting and multi-person recommendation quality are not implied by the Qloo smoke test.
+
 ## Current implementation: dietary segments
 
 - Requirements: event headcount/budget, up to 12 mutually exclusive segments, editable positive counts/labels/requirements, relevant source excerpts, unresolved questions and explicit confirmation. Editing a segment revokes confirmation. No-known-restrictions groups require explicit approval; missing people remain unconfirmed.
@@ -9,7 +96,7 @@ This record distinguishes executed local checks from live integration and human 
 - Extraction: OpenRouter remains the provider, with the same paid-use flag, one concurrent request, 20-call process cap, 8,000-character input cap, 4,000-token output limit, 30-second timeout, and no automatic retry/fallback. Aggregate and individual inputs use a segment normalizer. Included counts inherit parent requirements and are subtracted once; ambiguous overlap stays unresolved. Duplicate/conflicting people are counted once and remain reviewable. All model-derived segments are unconfirmed.
 - Review: quantities of multiple meal types per segment, per-segment subtotal and validation issues; manual meal/quantity/add/remove edits preserve other segments and never rerun the whole allocation. Availability releases the edited segment's allocation before accounting for other segments. Unknown attributes do not satisfy requirements.
 - Checkout: server validation and prices are authoritative. Final segment quantities are saved with approval-time item names/prices. Identical meals consolidate into PayPal item lines; packing retains the segment breakdown. Sandbox-only payment and existing session/origin/idempotency/uncertain-result locks remain in place.
-- No new package, database redesign, public deployment, Qloo or paid service usage was introduced.
+- The original segment revision introduced no new package, database redesign, public deployment, Qloo or paid service usage. The later Qloo extension is recorded above.
 
 ## Verified prototype limits
 

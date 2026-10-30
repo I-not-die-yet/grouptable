@@ -11,8 +11,11 @@ import { convertLegacyAllocation, convertLegacyRequest, restoreDraft } from '@/l
 import { updateSegmentMeals, validateSegments } from '@/lib/segment-allocation';
 import SegmentRequirements, { canAllocateSegments } from './SegmentRequirements';
 import SegmentMeals from './SegmentMeals';
+import TastePreferences, { TasteEvidence } from './TastePreferences';
+import type { Restaurant, TasteProfile } from '@/lib/taste';
+import type { AgentResult } from '@/lib/agent-types';
 
-type Props = { menu: MenuItem[]; aiMode: 'fixture' | 'live'; paymentMode: 'fixture' | 'sandbox' };
+type Props = { menu: MenuItem[]; aiMode: 'fixture' | 'live'; paymentMode: 'fixture' | 'sandbox'; qlooMode: 'fixture' | 'live'; agentMode: 'fixture' | 'live' };
 type Step = 'requirements' | 'review' | 'payment' | 'confirmation';
 const key = 'grouptable-draft-v2';
 const legacyKey = 'grouptable-draft-v1';
@@ -26,7 +29,11 @@ async function api<T>(path: string, body?: unknown, method = body === undefined 
   return data;
 }
 
-export default function GroupTable({ menu, aiMode, paymentMode }: Props) {
+export default function GroupTable({ menu, aiMode, paymentMode, qlooMode, agentMode }: Props) {
+  const [taste, setTaste] = useState<TasteProfile | null>(null);
+  const [tasteSeeds, setTasteSeeds] = useState<Restaurant[]>([]);
+  const [agentResult, setAgentResult] = useState<AgentResult | null>(null);
+  const [planning, setPlanning] = useState(false);
   const [request, setRequest] = useState<SegmentRequest>(() => newSegmentRequest());
   const [text, setText] = useState('');
   const [issues, setIssues] = useState<string[]>([]);
@@ -96,6 +103,7 @@ export default function GroupTable({ menu, aiMode, paymentMode }: Props) {
     finally { setBusy(false); }
   }
   async function edit(next: SegmentRequest, nextAllocation: SegmentAllocation | null = null) {
+    setAgentResult(null);
     if (order) {
       await api(`/api/orders/${order.id}/invalidate`, {});
       sessionStorage.removeItem(orderKey); history.replaceState({}, '', '/');
@@ -104,7 +112,7 @@ export default function GroupTable({ menu, aiMode, paymentMode }: Props) {
     setRequest({ ...next, revision: request.revision + 1 }); setStep(nextAllocation ? 'review' : 'requirements');
   }
   function updateRequirements(next: SegmentRequest) {
-    setRequest({ ...next, revision: request.revision + 1 }); setAllocation(null);
+    setRequest({ ...next, revision: request.revision + 1 }); setAllocation(null); setAgentResult(null);
   }
   async function editApproved() {
     if (!order) return;
@@ -129,12 +137,25 @@ export default function GroupTable({ menu, aiMode, paymentMode }: Props) {
   }
   async function generate() {
     await run(async () => {
+      setAgentResult(null);
       if (issues.length) throw new Error('Resolve the extraction questions before generating an order.');
       const parsed = segmentRequestSchema.parse(request);
-      const result = await api<{ ok: boolean; allocation?: SegmentAllocation; message?: string; code?: string }>('/api/allocate', parsed);
+      const result = await api<{ ok: boolean; allocation?: SegmentAllocation; message?: string; code?: string }>('/api/allocate', taste ? { request: parsed, tasteId: taste.id } : parsed);
       if (!result.ok || !result.allocation) throw new Error(`${result.code}: ${result.message}`);
       setAllocation(result.allocation); setStep('review');
     });
+  }
+  async function plan() {
+    setPlanning(true);
+    await run(async () => {
+      setAgentResult(null);
+      const result = await api<AgentResult>('/api/agent/plan', { request: segmentRequestSchema.parse(request), restaurantIds: tasteSeeds.map(s => s.id) });
+      setAgentResult(result);
+      if (result.outcome === 'draft' && result.allocation) {
+        setAllocation(result.allocation); setTaste(result.profile ?? null); setStep('review');
+      } else setNotice(result.message);
+    });
+    setPlanning(false);
   }
   async function approveOrder() {
     await run(async () => {
@@ -211,10 +232,14 @@ export default function GroupTable({ menu, aiMode, paymentMode }: Props) {
             {issues.length > 0 && <div className="questions"><h3>Questions to resolve</h3><ul>{issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul><button className="button secondary" onClick={() => { setIssues([]); setNotice('Questions acknowledged. Correct segment counts and requirements, then explicitly confirm exclusivity.'); }}>I have resolved these in the segment counts</button></div>}
             </fieldset>
             <SegmentRequirements request={request} onChange={updateRequirements} disabled={busy} />
+            <TastePreferences mode={qlooMode} profile={taste} seeds={tasteSeeds} menu={menu} disabled={busy} onBusy={setBusy} onSelectionChange={seeds => { setTasteSeeds(seeds); setTaste(null); setAllocation(null); setAgentResult(null); }} onChange={profile => { setTaste(profile); setAllocation(null); setAgentResult(null); }} />
+            <div className="agent-planner"><h3>Let the planner prepare a draft.</h3><p className="subtle">{agentMode === 'live' ? 'Free AI can request Qloo cuisine evidence and a checked allocation, then return a draft or a question. Anonymous counts, dietary requirement codes and selected restaurant IDs go to OpenRouter; original replies stay out of this request.' : 'Simulated planner: demonstrates the tool sequence without a language-model call. Select an example restaurant or leave taste empty.'}</p><p className="subtle">Confirm requirements first. Select restaurant branches above; you do not need to build a profile before planning. Nothing is approved or paid automatically.</p><button className="button secondary" disabled={busy || !canAllocateSegments(request) || issues.length > 0} onClick={() => void plan()}>{planning ? 'Preparing your draft…' : agentMode === 'live' ? 'Plan with AI' : 'Simulate AI planner'}</button>{planning && <p role="status">Planning is in progress. Completed tool activity will appear when it finishes.</p>}{agentResult && <AgentActivity result={agentResult} />}</div>
             <div className="panel-footer"><p>Checks use fictional menu labels. They do not establish real allergen safety or cross-contact controls.</p><button className="button primary" disabled={busy || !canAllocateSegments(request) || issues.length > 0} onClick={() => void generate()}>Allocate meals</button></div>
           </>}
           {step === 'review' && allocation && <>
             <div className="section-heading"><div><h2>Meals by segment.</h2><p>Adjust meal types and quantities. Other segments stay unchanged.</p></div><span className={`status ${reviewValidation?.ok ? 'good' : ''}`}>{reviewValidation?.ok ? 'Checks passed' : 'Needs adjustment'}</span></div>
+            {taste && <details className="taste-review"><summary>{taste.mode === 'live' ? 'Qloo-informed starting choices' : 'Simulated taste-informed starting choices'}</summary><TasteEvidence profile={taste} menu={menu} /><p className="subtle">The allocator tries matched meals first and keeps the first feasible result. It does not maximise group satisfaction. Your manual changes take precedence and do not regenerate the allocation.</p></details>}
+            {agentResult && <><AgentActivity result={agentResult} /><p className="subtle">Activity describes the starting draft. Your manual edits below take precedence and never restart the agent.</p></>}
             {reviewValidation?.ok && <div className="check-summary"><span>✓ Segment quantities match</span><span>✓ Requirements checked</span><span>✓ Budget and shared stock checked</span></div>}
             <div aria-live="polite" aria-atomic="true">{reviewValidation && !reviewValidation.ok && <div className="message error" role="alert">{allocation.totalCents > request.budgetCents ? `${money(allocation.totalCents - request.budgetCents)} over budget. Adjust meals or quantities before approving.` : 'Resolve the quantity or compatibility issues shown below.'}{reviewValidation.issues.filter(issue => !issue.segmentId && issue.code !== 'BUDGET').map((issue, i) => <p key={i}>{issue.message}</p>)}</div>}</div>
             <SegmentMeals request={request} allocation={allocation} menu={menu} onChange={changeSegmentMeals} disabled={busy} />
@@ -237,6 +262,10 @@ export default function GroupTable({ menu, aiMode, paymentMode }: Props) {
       </div>}
     </main><footer className="site-footer"><span>GroupTable</span><p>Built for the organiser who remembers everyone.</p><span>PayPal hackathon prototype</span></footer>
   </>;
+}
+
+function AgentActivity({ result }: { result: AgentResult }) {
+  return <section className="agent-activity" aria-label="Planner activity" aria-live="polite"><h3>{result.mode === 'live' ? 'AI planner activity' : 'Simulated planner activity — not a live AI run'}</h3><ol>{result.steps.map((step, i) => <li key={i}><strong>{step.tool === 'get_cuisine_profile' ? 'Taste lookup' : step.tool === 'allocate_meals' ? 'Allocation & validation' : 'Organiser handoff'}</strong><span className="agent-source">{step.source === 'local' ? 'Local checks' : step.source === 'live' ? 'Live service' : 'Simulated'}</span><p>{step.message}</p></li>)}</ol><p>{result.message}</p></section>;
 }
 
 function LegacyPacking({ request, allocation, menu }: { request: MealRequest; allocation: Allocation; menu: MenuItem[] }) {
